@@ -1,0 +1,96 @@
+[gd_scene format=3 uid="uid://bhjto87d2a8en"]
+
+[ext_resource type="Script" uid="uid://dea8xwxlp4n3y" path="res://Main.cs" id="1_ig7tw"]
+[ext_resource type="PackedScene" uid="uid://43ru7vedioah" path="res://piece.tscn" id="2_0xm2m"]
+[ext_resource type="Texture2D" uid="uid://c0nsomjaquja0" path="res://icon.svg" id="3_h2yge"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_dklp6"]
+size = Vector2(600, 200)
+
+[node name="Main" type="Node2D" unique_id=1924009127]
+script = ExtResource("1_ig7tw")
+PieceScene = ExtResource("2_0xm2m")
+
+[node name="GameBox" type="StaticBody2D" parent="." unique_id=213105879]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="GameBox" unique_id=632009015]
+polygon = PackedVector2Array(60, 250, 60, 1180, 660, 1180, 660, 250, 700, 250, 700, 1220, 20, 1220, 20, 250)
+
+[node name="Line2D" type="Line2D" parent="GameBox" unique_id=554497282]
+points = PackedVector2Array(60, 250, 60, 1180, 660, 1180, 660, 250)
+width = 8.0
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=591987933]
+
+[node name="ScoreLabel" type="Label" parent="UI" unique_id=1853343837]
+offset_left = 480.0
+offset_top = 40.0
+offset_right = 584.0
+offset_bottom = 79.0
+theme_override_font_sizes/font_size = 28
+text = "SKOR: 0"
+
+[node name="BestScoreLabel" type="Label" parent="UI" unique_id=1336545270]
+offset_left = 480.0
+offset_top = 80.0
+offset_right = 622.0
+offset_bottom = 111.0
+theme_override_font_sizes/font_size = 22
+text = "EN YÜKSEK: 0"
+
+[node name="NextLabel" type="Label" parent="UI" unique_id=60034131]
+offset_left = 60.0
+offset_top = 40.0
+offset_right = 165.0
+offset_bottom = 71.0
+theme_override_font_sizes/font_size = 22
+text = "SIRADAKI:"
+
+[node name="NextPreview" type="Sprite2D" parent="UI" unique_id=1552251196]
+position = Vector2(100, 110)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("3_h2yge")
+
+[node name="GameOverPanel" type="ColorRect" parent="UI" unique_id=1005041307]
+visible = false
+offset_right = 720.0
+offset_bottom = 1280.0
+color = Color(0, 0, 0, 0.78431374)
+
+[node name="GameOverTitle" type="Label" parent="UI/GameOverPanel" unique_id=1011872435]
+layout_mode = 0
+offset_left = 210.0
+offset_top = 450.0
+offset_right = 300.0
+offset_bottom = 473.0
+theme_override_font_sizes/font_size = 48
+text = "OYUN BİTTİ"
+
+[node name="FinalScoreLabel" type="Label" parent="UI/GameOverPanel" unique_id=457729795]
+layout_mode = 0
+offset_left = 280.0
+offset_top = 540.0
+offset_right = 333.0
+offset_bottom = 563.0
+theme_override_font_sizes/font_size = 32
+text = "Skor: 0"
+
+[node name="RestartButton" type="Button" parent="UI/GameOverPanel" unique_id=672557113]
+layout_mode = 0
+offset_left = 240.0
+offset_top = 640.0
+offset_right = 480.0
+offset_bottom = 710.0
+theme_override_font_sizes/font_size = 28
+text = "TEKRAR OYNA"
+
+[node name="DangerArea" type="Area2D" parent="." unique_id=2074746774]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DangerArea" unique_id=1754208765]
+position = Vector2(360, 210)
+shape = SubResource("RectangleShape2D_dklp6")
+
+[node name="Line2D" type="Line2D" parent="DangerArea" unique_id=280570246]
+points = PackedVector2Array(60, 310, 660, 310)
+width = 4.0
+default_color = Color(1, 1, 1, 0.39215687)

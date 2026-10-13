@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://43ru7vedioah"]
+
+[ext_resource type="Texture2D" uid="uid://c0nsomjaquja0" path="res://icon.svg" id="1_3makh"]
+[ext_resource type="Script" uid="uid://b7ltuvhqbgpi7" path="res://Piece.cs" id="1_hisf2"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_dklp6"]
+radius = 25.0
+
+[node name="Piece" type="RigidBody2D" unique_id=998284671]
+contact_monitor = true
+max_contacts_reported = 4
+script = ExtResource("1_hisf2")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=315731279]
+shape = SubResource("CircleShape2D_dklp6")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=277922453]
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("1_3makh")
