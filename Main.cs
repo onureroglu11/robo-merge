@@ -76,7 +76,7 @@ public partial class Main : Node2D
 	{
 		
 		if (_isGameOver) return;
-
+		
 		if (@event is InputEventMouseButton mouseBtn && mouseBtn.ButtonIndex == MouseButton.Left)
 		{
 			if (mouseBtn.Pressed)
@@ -265,20 +265,23 @@ public partial class Main : Node2D
 	}
 
 	private void UpdateNextPreview()
-	{
-		if (_nextPreview == null) return;
-		float scale = 0.2f + (_nextLevel - 1) * 0.05f;
-		_nextPreview.Scale = new Vector2(scale, scale);
+{
+	if (_nextPreview == null) return;
 
-		Color[] colors = new Color[]
-		{
-			new Color(0.7f, 0.7f, 0.7f),
-			new Color(0.3f, 0.7f, 1.0f),
-			new Color(0.9f, 0.6f, 0.2f),
-			new Color(0.2f, 0.8f, 0.4f)
-		};
-		_nextPreview.Modulate = colors[_nextLevel - 1];
+	// 1. Yeni seviye görselini yükle
+	string path = $"res://sprites/L{_nextLevel}.png";
+	if (ResourceLoader.Exists(path))
+	{
+		_nextPreview.Texture = GD.Load<Texture2D>(path);
 	}
+
+	// 2. Renk modülasyonunu sıfırla (orijinal renkler görünsün)
+	_nextPreview.Modulate = Colors.White;
+
+	// 3. Önizleme kutucuğu için kademeli ölçeklendirme
+	float scale = 0.22f + (_nextLevel - 1) * 0.05f;
+	_nextPreview.Scale = new Vector2(scale, scale);
+}
 
 	private void SaveBestScore()
 	{
