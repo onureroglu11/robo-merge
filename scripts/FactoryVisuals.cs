@@ -63,12 +63,13 @@ public partial class FactoryVisuals : Node2D
 		Color rivetShadow = new(0.08f, 0.10f, 0.14f);
 		Color rivetHead = new(0.38f, 0.42f, 0.50f);
 
-		DrawRect(new Rect2(0, 0, 720, 740), topWall);
-		DrawRect(new Rect2(0, 740, 720, 540), bottomWall);
+		// Ekran dışı yan/üst/alt boşlukları da kaplaması için geniş zemin
+		DrawRect(new Rect2(-400, -400, 1520, 1140), topWall);
+		DrawRect(new Rect2(-400, 740, 1520, 940), bottomWall);
 
 		// Ortadaki yatay kırmızı-bordo şerit
-		DrawRect(new Rect2(0, 700, 720, 38), new Color(0.50f, 0.14f, 0.15f));
-		DrawRect(new Rect2(0, 738, 720, 38), new Color(0.24f, 0.07f, 0.08f));
+		DrawRect(new Rect2(-400, 700, 1520, 38), new Color(0.50f, 0.14f, 0.15f));
+		DrawRect(new Rect2(-400, 738, 1520, 38), new Color(0.24f, 0.07f, 0.08f));
 
 		// Şerit üzerindeki eğik gri kesikler
 		float[] slashGroups = { 210f, 460f };
@@ -151,7 +152,7 @@ public partial class FactoryVisuals : Node2D
 		Color darkStruct = new(0.25f, 0.28f, 0.28f);
 		Color lightTankHighlight = new(0.68f, 0.72f, 0.72f);
 
-		DrawRect(new Rect2(0, 0, 720, 1280), wallBg);
+		DrawRect(new Rect2(-400, -400, 1520, 2080), wallBg);
 
 		// Arka plandaki dikey borular
 		float[] bgPipesX = { 85f, 595f };

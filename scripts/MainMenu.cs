@@ -109,13 +109,13 @@ public partial class MainMenu : Control
 		GameData.ApplySoftFont(_titleLabel, 76, new Color(1.0f, 0.74f, 0.20f), new Color(0.14f, 0.10f, 0.22f), 18);
 		AddChild(_titleLabel);
 
-		// 3. Başlığın altında duran ana L8 Robot ve taçlı rekor göstergesi
-		if (ResourceLoader.Exists("res://sprites/L8.png"))
+		// 3. Başlığın altında duran ana L10 Robot ve taçlı rekor göstergesi
+		if (ResourceLoader.Exists("res://sprites/L10.png"))
 		{
 			_heroRobotSprite = new Sprite2D
 			{
 				Name = "HeroRobotSprite",
-				Texture = GD.Load<Texture2D>("res://sprites/L8.png"),
+				Texture = GD.Load<Texture2D>("res://sprites/L10.png"),
 				Position = new Vector2(360f, 340f),
 				Scale = new Vector2(0.68f, 0.68f)
 			};
@@ -173,19 +173,19 @@ public partial class MainMenu : Control
 		var piecesNode = new Node2D { Name = "ShowcasePieces" };
 		AddChild(piecesNode);
 
-		for (int lvl = 1; lvl <= 7; lvl++)
+		for (int lvl = 1; lvl <= 9; lvl++)
 		{
 			string path = $"res://sprites/L{lvl}.png";
 			if (!ResourceLoader.Exists(path)) continue;
 
-			float scale = 0.22f + (lvl - 1) * 0.025f;
+			float scale = 0.20f + (lvl - 1) * 0.018f;
 			float radius = 92f * scale;
 
 			var sp = new Sprite2D
 			{
 				Name = $"ShowcasePiece_L{lvl}",
 				Texture = GD.Load<Texture2D>(path),
-				Position = new Vector2(75f + (lvl - 1) * 84f, beltY - radius + 4f),
+				Position = new Vector2(72f + (lvl - 1) * 66f, beltY - radius + 4f),
 				Scale = new Vector2(scale, scale)
 			};
 			piecesNode.AddChild(sp);

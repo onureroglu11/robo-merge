@@ -30,6 +30,7 @@ public static class GameData
 	public static List<SavedPieceData> SavedPieces { get; private set; } = new();
 
 	private static bool _loaded = false;
+	private static bool _windowConfigured = false;
 	private static AudioStreamPlayer _bgmPlayer;
 	private static Font _roundedFont;
 
@@ -38,6 +39,37 @@ public static class GameData
 		if (_loaded) return;
 		_loaded = true;
 		Load();
+		ConfigureMultiplatformWindow();
+	}
+
+	// Mac (Retina), Windows ve Mobil (iOS/Android) ekranlarda pencere ve çözünürlük uyumunu ayarlar
+	private static void ConfigureMultiplatformWindow()
+	{
+		if (_windowConfigured || Engine.IsEditorHint()) return;
+		_windowConfigured = true;
+
+		RenderingServer.SetDefaultClearColor(new Color(0.08f, 0.10f, 0.14f));
+
+		string os = OS.GetName();
+		if (os == "macOS" || os == "Windows" || os == "Linux")
+		{
+			int screenIdx = DisplayServer.WindowGetCurrentScreen();
+			Rect2I usable = DisplayServer.ScreenGetUsableRect(screenIdx);
+
+			if (usable.Size.Y > 200)
+			{
+				// Mac Retina ve masaüstü ekranlarda dikey (9:16) pencereyi ekran yüksekliğinin %85'ine sığdır ve ortala
+				int targetH = (int)(usable.Size.Y * 0.85f);
+				int targetW = (int)(targetH * (720.0f / 1280.0f));
+
+				DisplayServer.WindowSetSize(new Vector2I(targetW, targetH));
+				Vector2I centeredPos = usable.Position + new Vector2I(
+					(usable.Size.X - targetW) / 2,
+					(usable.Size.Y - targetH) / 2
+				);
+				DisplayServer.WindowSetPosition(centeredPos);
+			}
+		}
 	}
 
 	// Tüm arayüzde kullanılan yumuşak ve kalın hatlı font

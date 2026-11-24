@@ -41,6 +41,7 @@ public partial class Main : Node2D
 	// Sahne elemanları
 	private FactoryVisuals _factoryBg;
 	private FactoryVisuals _topConveyor;
+	private AdManager _adManager;
 	private ColorRect _boxBg;
 	private Line2D _boxBorder;
 	private Node2D _piecesContainer;
@@ -81,7 +82,7 @@ public partial class Main : Node2D
 
 	private readonly RandomNumberGenerator _rng = new();
 
-	// Ses dosyaları
+	// Ses dosyaları ve ses patlamasını (clipping) önleyen kanal/süreç kontrolleri
 	private AudioStream _dropSound;
 	private AudioStream _hitSound;
 	private AudioStream _mergeSound;
@@ -89,6 +90,10 @@ public partial class Main : Node2D
 	private AudioStream _robotSound;
 	private AudioStream _warningSound;
 	private AudioStream _gameOverSound;
+
+	private AudioStreamPlayer _mergeSfxPlayer;
+	private double _lastMergeSfxTime = -1.0;
+	private double _lastCollisionSfxTime = -1.0;
 
 	public override void _Ready()
 	{
@@ -114,12 +119,17 @@ public partial class Main : Node2D
 		if (!Engine.IsEditorHint())
 		{
 			LoadAudioAssets();
+			SetupAudioLimiterAndChannels();
 		}
 
 		BuildGameWorld();
 		BuildHUD();
 		BuildPauseModal();
 		BuildGameOverModal();
+
+		_adManager = new AdManager { Name = "AdManager" };
+		AddChild(_adManager);
+
 		ApplyThemeColors();
 
 		if (!Engine.IsEditorHint())
@@ -157,6 +167,33 @@ public partial class Main : Node2D
 			child.Owner = rootOwner;
 			AssignOwnerRecursive(child, rootOwner);
 		}
+	}
+
+	private void SetupAudioLimiterAndChannels()
+	{
+		// Zincirleme birleşmelerde ses patlamasını (clipping) tamamen önlemek için Master bus'a Limiter ekle
+		bool hasLimiter = false;
+		int effectCount = AudioServer.GetBusEffectCount(0);
+		for (int i = 0; i < effectCount; i++)
+		{
+			if (AudioServer.GetBusEffect(0, i) is AudioEffectHardLimiter)
+			{
+				hasLimiter = true;
+				break;
+			}
+		}
+		if (!hasLimiter)
+		{
+			var limiter = new AudioEffectHardLimiter
+			{
+				CeilingDb = -1.5f
+			};
+			AudioServer.AddBusEffect(0, limiter);
+		}
+
+		// Merge & Zincir sesleri için tek temiz kanal (üst üste binip patlamayı engeller)
+		_mergeSfxPlayer = new AudioStreamPlayer { Name = "MergeSfxChannel" };
+		AddChild(_mergeSfxPlayer);
 	}
 
 	private void LoadAudioAssets()
@@ -336,12 +373,12 @@ public partial class Main : Node2D
 		gateFrame.AddThemeStyleboxOverride("panel", gateStyle);
 		AddChild(gateFrame);
 
-		if (ResourceLoader.Exists("res://sprites/L8.png"))
+		if (ResourceLoader.Exists("res://sprites/L10.png"))
 		{
 			var roboBadge = new Sprite2D
 			{
 				Name = "RobotExitSymbol",
-				Texture = GD.Load<Texture2D>("res://sprites/L8.png"),
+				Texture = GD.Load<Texture2D>("res://sprites/L10.png"),
 				Position = new Vector2(490f, RobotConveyorY - 20f),
 				Scale = new Vector2(0.18f, 0.18f),
 				Modulate = new Color(1.0f, 1.0f, 1.0f, 0.88f),
@@ -456,8 +493,8 @@ public partial class Main : Node2D
 		var legendBg = new Panel
 		{
 			Name = "LevelEvolutionBar",
-			Position = new Vector2(45, 1188),
-			Size = new Vector2(392, 64),
+			Position = new Vector2(36, 1188),
+			Size = new Vector2(408, 64),
 			MouseFilter = Control.MouseFilterEnum.Ignore
 		};
 		var style = new StyleBoxFlat
@@ -476,7 +513,7 @@ public partial class Main : Node2D
 		legendBg.AddThemeStyleboxOverride("panel", style);
 		hud.AddChild(legendBg);
 
-		for (int lvl = 1; lvl <= 8; lvl++)
+		for (int lvl = 1; lvl <= 10; lvl++)
 		{
 			string path = $"res://sprites/L{lvl}.png";
 			if (ResourceLoader.Exists(path))
@@ -485,8 +522,8 @@ public partial class Main : Node2D
 				{
 					Name = $"LegendIcon_L{lvl}",
 					Texture = GD.Load<Texture2D>(path),
-					Position = new Vector2(26f + (lvl - 1) * 48f, 32f),
-					Scale = new Vector2(0.16f, 0.16f)
+					Position = new Vector2(24f + (lvl - 1) * 40f, 32f),
+					Scale = new Vector2(0.135f, 0.135f)
 				};
 				legendBg.AddChild(sp);
 			}
@@ -941,31 +978,32 @@ public partial class Main : Node2D
 		int totalPoints = basePoints + chainBonus;
 
 		AddScore(totalPoints);
-
-		if (chainStep >= 2)
-		{
-			PlaySfx(_chainSound, 0.95f + chainStep * 0.06f);
-			ShowFloatingText($"{GameData.Tr("CHAIN")} x{chainStep}! +{totalPoints}", spawnPosition, resultingLevel, new Color(0.35f, 0.95f, 1.0f));
-		}
-		else
-		{
-			float pitch = 0.92f + (resultingLevel * 0.05f);
-			PlaySfx(_mergeSound, pitch);
-			ShowFloatingText($"+{totalPoints}", spawnPosition, resultingLevel, new Color(1.0f, 0.85f, 0.22f));
-		}
-
 		CreateMergeParticles(spawnPosition, resultingLevel);
 
-		// İki L8 Robot birleştiğinde üretilen robotu sağ alt konveyörden tahliye et
-		if (resultingLevel > 8)
+		// L10 Final Robot oluştuğu AN doğrudan sağ alt konveyöre inip tahliye olur!
+		if (resultingLevel >= 10)
 		{
-			PlaySfx(_robotSound);
-			ShowFloatingText($"{GameData.Tr("ROBOT_BUILT")} +{totalPoints}", spawnPosition + new Vector2(0, -35f), 9, new Color(0.35f, 1.0f, 0.55f));
+			PlaySfx(_robotSound, 1.0f, -2.5f);
+			ShowFloatingText($"{GameData.Tr("ROBOT_BUILT")} +{totalPoints}", spawnPosition + new Vector2(0, -35f), 10, new Color(0.35f, 1.0f, 0.55f));
 			ProduceAndEvacuateRobot(spawnPosition);
 			return;
 		}
 
+		if (chainStep >= 2)
+		{
+			float chainPitch = Mathf.Min(1.45f, 0.96f + chainStep * 0.06f);
+			PlayMergeSfx(_chainSound, chainPitch, -3.5f);
+			ShowFloatingText($"{GameData.Tr("CHAIN")} x{chainStep}! +{totalPoints}", spawnPosition, resultingLevel, new Color(0.35f, 0.95f, 1.0f));
+		}
+		else
+		{
+			float pitch = 0.92f + (resultingLevel * 0.045f);
+			PlayMergeSfx(_mergeSound, pitch, -3.5f);
+			ShowFloatingText($"+{totalPoints}", spawnPosition, resultingLevel, new Color(1.0f, 0.85f, 0.22f));
+		}
+
 		var newPiece = PieceScene.Instantiate<Piece>();
+		newPiece.Level = resultingLevel; // Sahneye girmeden hemen önce seviyeyi ata (ilk karede L1 kalmasını önler)
 		newPiece.GlobalPosition = spawnPosition;
 		newPiece.Freeze = false;
 		newPiece.HasDropped = true;
@@ -984,19 +1022,25 @@ public partial class Main : Node2D
 			Scale = new Vector2(0.85f, 0.85f),
 			ZIndex = 25
 		};
-		if (ResourceLoader.Exists("res://sprites/L8.png"))
+		if (ResourceLoader.Exists("res://sprites/L10.png"))
 		{
-			robotSprite.Texture = GD.Load<Texture2D>("res://sprites/L8.png");
+			robotSprite.Texture = GD.Load<Texture2D>("res://sprites/L10.png");
 		}
 		AddChild(robotSprite);
 
+		// Önce hafif bir doğum parlaması/büyümesi, ardından sağ alttaki kırmızı banda iniş ve çıkış
+		robotSprite.Scale = Vector2.Zero;
 		var tween = CreateTween();
+		tween.SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+		tween.TweenProperty(robotSprite, "scale", new Vector2(0.92f, 0.92f), 0.28f);
+
 		Vector2 conveyorEntry = new Vector2(510f, RobotConveyorY - 56f);
-		tween.SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.InOut);
+		tween.Chain().SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.InOut);
 		tween.TweenProperty(robotSprite, "global_position", conveyorEntry, 0.65f);
+		tween.Parallel().TweenProperty(robotSprite, "scale", new Vector2(0.76f, 0.76f), 0.65f);
 
 		tween.Chain().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.In);
-		tween.TweenProperty(robotSprite, "global_position:x", 820f, 0.80f);
+		tween.TweenProperty(robotSprite, "global_position:x", 820f, 0.78f);
 
 		tween.Chain().TweenCallback(Callable.From(() =>
 		{
@@ -1110,45 +1154,56 @@ public partial class Main : Node2D
 	}
 
 	// Ödüllü reklam sonrası üstteki parçaları temizleyip oyuna devam ettirir
-	private async void OnContinueWithAdPressed()
+	private void OnContinueWithAdPressed()
 	{
+		if (Engine.IsEditorHint() || _adManager == null) return;
+
 		_continueAdButton.Disabled = true;
 		_doneButton.Disabled = true;
 		_adWatchingLabel.Text = GameData.Tr("AD_WATCHING");
 		_adWatchingLabel.Visible = true;
 
-		await ToSignal(GetTree().CreateTimer(1.2f), SceneTreeTimer.SignalName.Timeout);
-
-		_hasUsedContinue = true;
-		_adWatchingLabel.Visible = false;
-		_continueAdButton.Disabled = false;
-		_doneButton.Disabled = false;
-		_gameOverOverlay.Visible = false;
-
-		float safeClearThresholdY = BoxTopY + (BoxBottomY - BoxTopY) * 0.52f;
-		foreach (Node child in _piecesContainer.GetChildren())
-		{
-			if (child is Piece piece && IsInstanceValid(piece) && piece != _currentPiece)
+		_adManager.ShowRewardedAd(
+			onRewardEarned: () =>
 			{
-				if (piece.GlobalPosition.Y < safeClearThresholdY)
+				_hasUsedContinue = true;
+				_adWatchingLabel.Visible = false;
+				_continueAdButton.Disabled = false;
+				_doneButton.Disabled = false;
+				_gameOverOverlay.Visible = false;
+
+				float safeClearThresholdY = BoxTopY + (BoxBottomY - BoxTopY) * 0.52f;
+				foreach (Node child in _piecesContainer.GetChildren())
 				{
-					CreateMergeParticles(piece.GlobalPosition, piece.Level);
-					piece.QueueFree();
+					if (child is Piece piece && IsInstanceValid(piece) && piece != _currentPiece)
+					{
+						if (piece.GlobalPosition.Y < safeClearThresholdY)
+						{
+							CreateMergeParticles(piece.GlobalPosition, piece.Level);
+							piece.QueueFree();
+						}
+						else
+						{
+							piece.SetDangerWarning(false);
+						}
+					}
 				}
-				else
+
+				_dangerTimer = 0f;
+				_isGameOver = false;
+
+				if (_currentPiece == null || !IsInstanceValid(_currentPiece))
 				{
-					piece.SetDangerWarning(false);
+					SpawnNextPieceFromConveyor();
 				}
+			},
+			onAdCancelled: () =>
+			{
+				_adWatchingLabel.Visible = false;
+				_continueAdButton.Disabled = false;
+				_doneButton.Disabled = false;
 			}
-		}
-
-		_dangerTimer = 0f;
-		_isGameOver = false;
-
-		if (_currentPiece == null || !IsInstanceValid(_currentPiece))
-		{
-			SpawnNextPieceFromConveyor();
-		}
+		);
 	}
 
 	// Pes Et seçildiğinde 2. çerçeveye geçer (Tekrar Oyna ve Ana Menüye Dön butonları görünür)
@@ -1253,11 +1308,12 @@ public partial class Main : Node2D
 			2 => 20,
 			3 => 40,
 			4 => 80,
-			5 => 150,
+			5 => 140,
 			6 => 220,
-			7 => 300,
-			8 => 500,
-			_ => 300
+			7 => 320,
+			8 => 450,
+			9 => 750,
+			_ => 500
 		};
 	}
 
@@ -1346,12 +1402,43 @@ public partial class Main : Node2D
 		};
 	}
 
-	public void PlayCollisionSfx(float pitchScale, float volumeDb)
+	// Zincirleme birleşmelerde ses patlamasını (clipping) önleyen kontrollü merge sesi
+	private void PlayMergeSfx(AudioStream stream, float pitchScale = 1.0f, float volumeDb = -3.5f)
 	{
-		PlaySfx(_hitSound, pitchScale, volumeDb);
+		if (stream == null || !GameData.SoundEnabled) return;
+
+		double now = Time.GetTicksMsec() / 1000.0;
+		if (now - _lastMergeSfxTime < 0.075)
+			return;
+		_lastMergeSfxTime = now;
+
+		if (_mergeSfxPlayer != null && IsInstanceValid(_mergeSfxPlayer))
+		{
+			_mergeSfxPlayer.Stop();
+			_mergeSfxPlayer.Stream = stream;
+			_mergeSfxPlayer.PitchScale = pitchScale;
+			_mergeSfxPlayer.VolumeDb = volumeDb;
+			_mergeSfxPlayer.Play();
+		}
+		else
+		{
+			PlaySfx(stream, pitchScale, volumeDb);
+		}
 	}
 
-	public void PlaySfx(AudioStream stream, float pitchScale = 1.0f, float volumeDb = 0.0f)
+	public void PlayCollisionSfx(float pitchScale, float volumeDb)
+	{
+		if (!GameData.SoundEnabled) return;
+
+		double now = Time.GetTicksMsec() / 1000.0;
+		if (now - _lastCollisionSfxTime < 0.07)
+			return;
+		_lastCollisionSfxTime = now;
+
+		PlaySfx(_hitSound, pitchScale, Mathf.Min(volumeDb, -5.0f));
+	}
+
+	public void PlaySfx(AudioStream stream, float pitchScale = 1.0f, float volumeDb = -2.0f)
 	{
 		if (stream == null || !GameData.SoundEnabled) return;
 
